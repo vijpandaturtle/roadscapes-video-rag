@@ -35,7 +35,6 @@ The dataset is split into train and test sets:
 
 ```
 roadscapes-video/
-  videos/
     train/
       Sequence_Day_1/
         clip1.mp4
@@ -46,8 +45,8 @@ roadscapes-video/
     test/
       Sequence_Day_1/
         ...
-  roadscapes_x_train.csv   ← training labels
-  roadscapes_x_test.csv    ← test labels
+  roadscapes_video_train.csv   ← training labels
+  roadscapes_video_test.csv    ← test labels
 ```
 
 Each video clip is a short segment of continuous dashcam footage. Clips vary in scene type — daytime highway, urban intersections, night driving, rain, following vehicles, lane changes, and more.
