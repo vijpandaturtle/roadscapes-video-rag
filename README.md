@@ -3,18 +3,16 @@
 [![Dataset](https://img.shields.io/badge/🤗%20Dataset-Roadscapes%20Video-yellow)](https://huggingface.co/datasets/vijpandaturtle/roadscapes-video)
 [![HuggingFace](https://img.shields.io/badge/HuggingFace-vijpandaturtle-orange)](https://huggingface.co/vijpandaturtle)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
-[![Claude](https://img.shields.io/badge/Claude-claude--opus--4--5-black)](https://anthropic.com)
+[![VLM](https://img.shields.io/badge/VLM-claude--opus--4--5-black)](https://anthropic.com)
 [![CLIP](https://img.shields.io/badge/Embedding-CLIP%20ViT--B%2F32-green)](https://huggingface.co/openai/clip-vit-base-patch32)
 
-A demo multimodal RAG system that retrieves similar driving scenarios from a training dataset and generates structured driving advice using Claude.
+A demo multimodal RAG system that retrieves similar driving scenarios from a training dataset and generates structured driving advice using VLM.
 
----
 
 ## Demo
 
-![Demo](assets/demo.gif)
+![Demo](roadscapes-demo.gif)
 
----
 
 ## What it does
 
@@ -22,12 +20,10 @@ Given a driving video clip, the system:
 
 1. Extracts all frames and embeds them using CLIP
 2. Searches a LanceDB vector index of training clips for the most visually similar scenarios
-3. Passes the retrieved clips (with their verified labels) and sampled query frames to Claude
+3. Passes the retrieved clips (with their verified labels) and sampled query frames to VLM
 4. Returns structured driving advice — an action, reasoning, and warning
 
----
 
----
 
 ## Dataset
 
@@ -95,9 +91,8 @@ The four-question annotation format is what makes this dataset particularly usef
 - **Instruction** answers *what to do next*
 - **Surroundings** answers *what the scene looks like*
 
-During retrieval, the system finds clips whose visual embeddings are closest to the query. During synthesis, Claude receives all four label fields for each retrieved clip — giving it rich, verified context to ground its advice rather than reasoning from visual frames alone.
+During retrieval, the system finds clips whose visual embeddings are closest to the query. During synthesis, VLM receives all four label fields for each retrieved clip — giving it rich, verified context to ground its advice rather than reasoning from visual frames alone.
 
----
 
 ## How `advise.py` was built
 
@@ -105,9 +100,8 @@ During retrieval, the system finds clips whose visual embeddings are closest to 
 
 The system is a retrieval-augmented generation (RAG) pipeline where the retrieval is visual rather than text-based. Instead of embedding text chunks, we embed video frames using CLIP and store them in a vector database. At query time, we embed the query clip the same way and find the most similar training clips by cosine similarity.
 
-Claude then acts as the synthesis layer — it reads the retrieved scenarios and their ground-truth labels, looks at the actual query frames, and reasons across all of it to produce grounded advice.
+VLM then acts as the synthesis layer — it reads the retrieved scenarios and their ground-truth labels, looks at the actual query frames, and reasons across all of it to produce grounded advice.
 
----
 
 ### Step 1 — Device setup
 
@@ -122,7 +116,6 @@ def get_device():
 
 Picks the best available device — Apple Silicon MPS, CUDA GPU, or CPU as fallback.
 
----
 
 ### Step 2 — CLIP model
 
@@ -136,7 +129,6 @@ def load_clip(device):
 
 We use OpenAI's CLIP ViT-B/32 from HuggingFace. CLIP is key here because it was trained on image-text pairs, so its visual embeddings are semantically meaningful — similar scenes end up close together in the 512-dimensional embedding space.
 
----
 
 ### Step 3 — Embedding
 
@@ -166,7 +158,6 @@ fused = 0.7 * visual_mean + 0.3 * text_emb
 
 This weighted fusion lets the label text nudge the query toward semantically matching scenarios even if the visual appearance differs slightly.
 
----
 
 ### Step 4 — Video frame extraction
 
@@ -177,12 +168,11 @@ def extract_all_frames(video_path):
     # reads every frame — used for building the query embedding
 
 def sample_frames(video_path, n=5):
-    # samples n evenly-spaced frames — used for sending to Claude
+    # samples n evenly-spaced frames — used for sending to VLM
 ```
 
-All frames are used for embedding (more frames = better representation). Only 5 sampled frames are sent to Claude to keep token cost low.
+All frames are used for embedding (more frames = better representation). Only 5 sampled frames are sent to VLM to keep token cost low.
 
----
 
 ### Step 5 — LanceDB retrieval
 
@@ -200,11 +190,10 @@ We search with a large limit (`top_k * 50`) to get many candidate frames, then d
 
 The score is converted from cosine distance to similarity: `score = 1.0 - distance`.
 
----
 
-### Step 6 — Claude synthesis
+### Step 6 — VLM synthesis
 
-The system prompt instructs Claude to act as a driving advisor and respond only in JSON:
+The system prompt instructs VLM to act as a driving advisor and respond only in JSON:
 
 ```json
 {
@@ -217,11 +206,10 @@ The system prompt instructs Claude to act as a driving advisor and respond only 
 The user message includes:
 - The 5 sampled query frames as base64 images
 - The top-k retrieved scenarios with their full label text (action, justification, surroundings, recommended action)
-- A prompt asking Claude to synthesise across all of it
+- A prompt asking VLM to synthesise across all of it
 
-Claude sees both the visual context (frames) and the textual context (retrieved labels) simultaneously — this is the multimodal part of the pipeline.
+VLM sees both the visual context (frames) and the textual context (retrieved labels) simultaneously — this is the multimodal part of the pipeline.
 
----
 
 ### Step 7 — CLI entry point
 
@@ -236,7 +224,6 @@ def main():
 
 The CLI accepts either a video clip or a text description as input. The `build_query_vector` function handles both cases — if a clip is provided it embeds frames, if text is provided it embeds the text directly.
 
----
 
 ## File structure
 
@@ -248,7 +235,41 @@ index/
   roadscapes.lancedb   — vector index (built by ingest.py)
 ```
 
----
+
+## Indexing the dataset
+
+Before running the advisor, you need to build the LanceDB vector index from the training clips. This only needs to be done once.
+
+**1. Download the dataset from HuggingFace:**
+
+```bash
+pip install huggingface_hub
+python -c "
+from huggingface_hub import snapshot_download
+snapshot_download(
+    repo_id='vijpandaturtle/roadscapes-video',
+    repo_type='dataset',
+    local_dir='./data'
+)
+"
+```
+
+**2. Run the ingest script:**
+
+```bash
+python ingest.py \
+  --video_dir data/videos/train \
+  --label_csv data/roadscapes_x_train.csv \
+  --db_path index/roadscapes.lancedb
+```
+
+This will:
+- Extract all frames from every training clip
+- Embed them using CLIP in batches
+- Store the embeddings alongside the label metadata in LanceDB
+
+Indexing time depends on the number of clips and your hardware. On MPS/GPU it takes a few minutes — on CPU expect longer. The resulting index lives at `index/roadscapes.lancedb` and is read by both `advise.py` and `app.py` at runtime.
+
 
 ## Usage
 
@@ -266,7 +287,6 @@ python advise.py --clip path/to/clip.mp4 --output_json result.json
 streamlit run app.py
 ```
 
----
 
 ## Dependencies
 
@@ -281,7 +301,6 @@ python-dotenv
 streamlit
 ```
 
----
 
 ## Environment
 
