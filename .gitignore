@@ -3,6 +3,12 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Roadscapes video dataset
+videos/
+labels/
+# Dataset LanceDB index
+index/
+
 # C extensions
 *.so
 
