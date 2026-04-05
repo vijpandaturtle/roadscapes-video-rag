@@ -3,7 +3,6 @@
 [![Dataset](https://img.shields.io/badge/🤗%20Dataset-Roadscapes%20Video-yellow)](https://huggingface.co/datasets/vijpandaturtle/roadscapes-video)
 [![HuggingFace](https://img.shields.io/badge/HuggingFace-vijpandaturtle-orange)](https://huggingface.co/vijpandaturtle)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://python.org)
-[![VLM](https://img.shields.io/badge/VLM-claude--opus--4--5-black)](https://anthropic.com)
 [![CLIP](https://img.shields.io/badge/Embedding-CLIP%20ViT--B%2F32-green)](https://huggingface.co/openai/clip-vit-base-patch32)
 
 A demo multimodal RAG system that retrieves similar driving scenarios from a training dataset and generates structured driving advice using VLM.
