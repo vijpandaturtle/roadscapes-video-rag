@@ -258,7 +258,7 @@ snapshot_download(
 ```bash
 python ingest.py \
   --video_dir data/videos/train \
-  --label_csv data/roadscapes_x_train.csv \
+  --label_csv data/roadscapes_video_train.csv \
   --db_path index/roadscapes.lancedb
 ```
 
